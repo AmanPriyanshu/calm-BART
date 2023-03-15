@@ -9,7 +9,8 @@ from torch.utils.data import TensorDataset, DataLoader, RandomSampler, Sequentia
 def get_dataset(exclude, data_directory, tokenizer, max_len=-1, shuffle_trajectories=False, data_percentage=1):
     token_id_set, act_mask_set = [], []
     files = []
-    for filename in glob.glob(os.path.join(data_directory, '*')):
+    subpath = os.path.join("lm_data", data_directory, '*')
+    for filename in glob.glob(subpath):
         if os.path.basename(filename) in exclude:
             continue
         else:
@@ -22,7 +23,7 @@ def get_dataset(exclude, data_directory, tokenizer, max_len=-1, shuffle_trajecto
         np.random.shuffle(files)
 
     for filename in files:
-        with open(filename, 'r') as f:
+        with open(filename, 'r', encoding='utf-8') as f:
             lines = f.readlines()
             for line in lines:
                 token_ids, act_mask = process(line, tokenizer)

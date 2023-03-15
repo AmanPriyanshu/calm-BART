@@ -84,6 +84,8 @@ def _train_gpt(train_dataloader, validation_dataloader, lm, save_dir_root, args)
 
             model.train()
 
+            b_labels = b_labels.long()
+
             outputs = model(b_input_ids, token_type_ids=None, attention_mask=b_input_mask, labels=b_labels)
 
             loss = outputs[0]  # model outputs are always tuple in transformers (see doc)
