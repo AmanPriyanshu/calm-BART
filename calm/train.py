@@ -164,6 +164,7 @@ def _validate_gpt(eval_dataloader, lm, model_type):
         b_input_mask = b_input_mask.to(device)
 
         with torch.no_grad():
+            b_labels = b_labels.long()
             outputs = model(b_input_ids, token_type_ids=None, attention_mask=b_input_mask, labels=b_labels)
         lm_loss = outputs[0]
         eval_loss += lm_loss.mean().item()

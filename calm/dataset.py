@@ -30,7 +30,7 @@ def get_dataset(exclude, data_directory, tokenizer, max_len=-1, shuffle_trajecto
                 if max_len == -1 or len(token_ids) < max_len:
                     token_id_set.append(token_ids)
                     act_mask_set.append(act_mask)
-    return token_id_set, act_mask_set
+    return token_id_set[:64], act_mask_set[:64]
 
 
 def process(line, tokenizer):
