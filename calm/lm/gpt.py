@@ -5,6 +5,7 @@ from jericho.util import clean
 from jericho.defines import ILLEGAL_ACTIONS, NO_EFFECT_ACTIONS
 
 from .base_lm import BaseLM, device
+import torch.nn.functional as F
 
 
 class GPT2LM(BaseLM):
@@ -201,6 +202,53 @@ def generate_topk(
 
     return output
 
+class BeamHypotheses:
+    def __init__(self, num_beams: int, max_length: int, length_penalty: float, early_stopping: bool):
+        """
+        Initialize n-best list of hypotheses.
+        """
+        self.max_length = max_length - 1  # ignoring bos_token
+        self.length_penalty = length_penalty
+        self.early_stopping = early_stopping
+        self.num_beams = num_beams
+        self.beams = []
+        self.worst_score = 1e9
+
+    def __len__(self):
+        """
+        Number of hypotheses in the list.
+        """
+        return len(self.beams)
+
+    def add(self, hyp: torch.LongTensor, sum_logprobs: float):
+        """
+        Add a new hypothesis to the list.
+        """
+        score = sum_logprobs / (hyp.shape[-1] ** self.length_penalty)
+        if len(self) < self.num_beams or score > self.worst_score:
+            self.beams.append((score, hyp))
+            if len(self) > self.num_beams:
+                sorted_next_scores = sorted([(s, idx) for idx, (s, _) in enumerate(self.beams)])
+                del self.beams[sorted_next_scores[0][1]]
+                self.worst_score = sorted_next_scores[1][0]
+            else:
+                self.worst_score = min(score, self.worst_score)
+
+    def is_done(self, best_sum_logprobs: float) -> bool:
+        """
+        If there are enough hypotheses and that none of the hypotheses being generated can become better than the worst
+        one in the heap, then we are done with this sentence.
+        """
+
+        if len(self) < self.num_beams:
+            return False
+        elif self.early_stopping:
+            return True
+        else:
+            cur_score = best_sum_logprobs / self.max_length ** self.length_penalty
+            ret = self.worst_score >= cur_score
+            return ret
+
 
 def _generate_beam_search_topk(
         self,
@@ -252,8 +300,8 @@ def _generate_beam_search_topk(
         scores = outputs[0][:, -1, :]  # (batch_size * num_beams, vocab_size)
 
         # if model has past, then set the past variable to speed up decoding
-        if self._do_output_past(outputs):
-            past = outputs[1]
+        # if self._do_output_past(outputs):
+        #     past = outputs[1]
 
         # repetition penalty (from CTRL paper https://arxiv.org/abs/1909.05858)
         if repetition_penalty != 1.0 and False:
